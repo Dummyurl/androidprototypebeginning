@@ -1,0 +1,40 @@
+apply plugin: 'com.android.application'
+
+android {
+    signingConfigs {
+        config {
+            storeFile file('C:/Users/Adrien/Desktop/android_projects/asertyuji/asertyuji.jks')
+            keyAlias 'key0'
+            keyPassword 'Adrien232025'
+            storePassword 'Adrien232025'
+        }
+    }
+    compileSdkVersion 27
+    defaultConfig {
+        applicationId "amiin.bazouk.application.com.localisationdemo"
+        minSdkVersion 15
+        targetSdkVersion 27
+        versionCode 5
+        versionName "5.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        signingConfig signingConfigs.config
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    productFlavors {
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.google.android.gms:play-services-maps:15.0.1'
+    implementation 'com.jjoe64:graphview:4.2.2'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+}
