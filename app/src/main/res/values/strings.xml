@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">LocalisationDemo</string>
     <string name="title_activity_maps">Map</string>
+    <string name="selling_is_off">SELLING IS OFF</string>
+    <string name="selling_is_on">SELLING IS ON</string>
+    <string name="connected">CONNECTED</string>
+    <string name="connection">CONNECTION</string>
+    <string name="wrong_identification">Wrong identification</string>
 </resources>

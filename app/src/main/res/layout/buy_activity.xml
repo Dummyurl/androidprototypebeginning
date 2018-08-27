@@ -2,33 +2,36 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/transparent">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:id="@+id/layout_general"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_centerInParent="true"
+        android:weightSum="10"
         android:orientation="vertical">
 
         <LinearLayout
             android:id="@+id/layout_first_part_organisation"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:paddingBottom="10dp"
+            android:paddingTop="10dp"
             android:layout_gravity="center_horizontal"
+            android:layout_weight="2"
+            android:weightSum="10"
             android:orientation="horizontal">
 
             <View
                 android:layout_width="2dp"
-                android:layout_height="match_parent"
-                android:background="@color/silver"/>
+                android:layout_height="77dp"
+                android:background="@color/silver" />
 
             <LinearLayout
-                android:id="@+id/layout_first_part"
+                android:id="@+id/main_part"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:orientation="vertical">
 
                 <View
@@ -104,33 +107,36 @@
                     android:layout_height="2dp"
                     android:background="@color/silver"/>
 
-                <LinearLayout
-                    android:id="@+id/today_stats"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="10sp"
-                        android:textStyle="bold"
-                        android:text="today's stats"/>
-
-                </LinearLayout>
-
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="2dp"
-                    android:background="@color/silver"/>
-
             </LinearLayout>
 
             <View
                 android:layout_width="2dp"
-                android:layout_height="match_parent"
-                android:background="@color/silver"/>
+                android:layout_height="76dp"
+                android:background="@color/silver" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/second_part"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="7"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:text="today's stats"/>
+
+            <com.jjoe64.graphview.GraphView
+                android:id="@+id/graph_view_sell"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
 
         </LinearLayout>
 
@@ -142,17 +148,18 @@
         <LinearLayout
             android:id="@+id/third_part"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_marginTop="10dp"
-            android:orientation="horizontal"
-            android:paddingBottom="5dp">
+            android:layout_weight="1"
+            android:paddingBottom="5dp"
+            android:orientation="horizontal">
 
             <Button
                 android:id="@+id/connection"
                 android:textColor="@color/purple"
-                android:background="@color/silver"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
+                android:background="@color/silver"
                 android:textSize="20sp"
                 android:text="CONNECTION"
                 android:padding="5dp"
@@ -168,6 +175,7 @@
                 android:layout_marginLeft="1.5dp"
                 android:src="@drawable/ic_sell_preferences"
                 android:layout_marginStart="1.5dp" />
+
 
         </LinearLayout>
 

@@ -3,6 +3,7 @@ package amiin.bazouk.application.com.localisationdemo;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -14,6 +15,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.DataPointInterface;
 import com.jjoe64.graphview.series.LineGraphSeries;
@@ -26,18 +28,23 @@ import amiin.bazouk.application.com.localisationdemo.Forms.SellForm;
 
 public class SellActivity extends AppCompatActivity {
 
-    private static final String SERIE_OF_EARNINGS_POINTS = "serie_of_earnings_points";
-    private int SELL_FORM_REQUEST_CODE = 3;
+    private final String SERIE_OF_EARNINGS_POINTS = "serie_of_earnings_points";
+    private final int SELL_FORM_REQUEST_CODE = 3;
     private Boolean isOn;
     private double price,volume;
     private SharedPreferences.Editor editor;
     private SharedPreferences preferences;
     private final String PRICE_SELL_EDITOR_VALUE ="price_sell_editor_value";
     private final String VOLUME_SELL_EDITOR_VALUE = "volume_sell_editor_value";
+    private final String NETWORK_NAME_SELL_EDITOR_VALUE ="network_name_sell_editor_value";
+    private final String NETWORK_PASSWORD_SELL_EDITOR_VALUE = "network_password_sell_editor_value";
+    public static final String NETWORK_NAME_INTENT_VALUE = "network_name_intent_value";
+    public static final String NETWORK_PASSWORD_INTENT_VALUE = "network_password_intent_value";
     private final String IS_ON_SELL_EDITOR_VALUE = "is_on_sell_editor_value";
     private List<Double> serieOfEarningPoints;
     private LineGraphSeries<DataPointInterface> series;
     private GraphView graph;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,17 +64,22 @@ public class SellActivity extends AppCompatActivity {
         for (int i = 0; i < st.countTokens(); i++) {
             serieOfEarningPoints.add(Double.parseDouble(st.nextToken()));
         }
-        graph = findViewById(R.id.graph_view);
+        graph = findViewById(R.id.graph_view_sell);
+        graph.getGridLabelRenderer().setGridStyle( GridLabelRenderer.GridStyle.NONE );
+        graph.getGridLabelRenderer().setHorizontalLabelsVisible(false);// remove horizontal x labels and line
+        graph.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        graph.setBackgroundColor(Color.BLACK);
         series = new LineGraphSeries<>();
 
         setUpParameters(Double.longBitsToDouble(preferences.getLong(PRICE_SELL_EDITOR_VALUE,0)),Double.longBitsToDouble(preferences.getLong(VOLUME_SELL_EDITOR_VALUE,0)), preferences.getBoolean(IS_ON_SELL_EDITOR_VALUE,false));
 
-        activateGraphEarnings();
-        activateEarningUpdates();
+        graphEarningsUpdates();
+        earningUpdates();
 
         findViewById(R.id.selling_activation).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                User seller = MapsActivity.getUser();
                 if(isOn)
                 {
                     isOn=false;
@@ -75,18 +87,24 @@ public class SellActivity extends AppCompatActivity {
                     MarkerSold markerSold = MapsActivity.getUser().getMarkerSold();
                     if(markerSold!=null) {
                         List<User> buyerMarkers = markerSold.getBuyersMarker();
-                        for (User buyerMarker : buyerMarkers) {
+                        for (User buyerMarker : buyerMarkers)
+                        {
+                            buyerMarker.soustractExpenses(price);
                             buyerMarker.setMarkerBought(null);
+                            buyerMarker.closeTCPClient();
+                            buyerMarker.closeWebSocketClient();
                         }
                         markerSold.getBuyersMarker().clear();
                     }
-                    ((Button)v).setText("SELLING IS OFF");
+                    seller.setExpenses(0);
+                    seller.closeTCPServer();
+                    ((Button)v).setText(R.string.selling_is_off);
                 }
                 else {
                     isOn=true;
+                    seller.setTCPServer(preferences.getString(NETWORK_NAME_SELL_EDITOR_VALUE,""),preferences.getString(NETWORK_PASSWORD_SELL_EDITOR_VALUE,""));
                     v.setBackgroundColor(getResources().getColor(R.color.black));
-                    ((Button)v).setText("SELLING IS ON");
-                    updateEarningUser();
+                    ((Button)v).setText(R.string.selling_is_on);
                 }
                 editor.putBoolean(IS_ON_SELL_EDITOR_VALUE,isOn);
                 editor.commit();
@@ -102,33 +120,7 @@ public class SellActivity extends AppCompatActivity {
         });
     }
 
-    private void updateEarningUser() {
-        final User seller = MapsActivity.getUser();
-        if(seller.getMarkerBought()!=null) {
-            Thread threadUpdateUserEarnings = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Handler handlerUpdateGraphEarnings = new Handler(getMainLooper());
-                    while (preferences.getBoolean(IS_ON_SELL_EDITOR_VALUE, false)) {
-                        handlerUpdateGraphEarnings.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                seller.addEarnings(seller.getMarkerBought().getPrice() * seller.getMarkerSold().getBuyersMarker().size());
-                            }
-                        });
-                        try {
-                            Thread.sleep(10000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            });
-            threadUpdateUserEarnings.start();
-        }
-    }
-
-    private void activateGraphEarnings() {
+    private void graphEarningsUpdates() {
         Thread threadUpdateGraphEarnings = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -143,7 +135,7 @@ public class SellActivity extends AppCompatActivity {
                             x = 0;
                             for (int i = 0; i < serieOfEarningPoints.size(); i++) {
                                 x = x + 0.01;
-                                y = serieOfEarningPoints.get(i)/100;
+                                y = serieOfEarningPoints.get(i);
                                 series.appendData(new DataPoint(x, y), true, 100);
                                 graph.addSeries(series);
                             }
@@ -160,7 +152,7 @@ public class SellActivity extends AppCompatActivity {
         threadUpdateGraphEarnings.start();
     }
 
-    private void activateEarningUpdates() {
+    private void earningUpdates() {
         Thread threadUpdateEarnings = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -196,12 +188,31 @@ public class SellActivity extends AppCompatActivity {
         threadUpdateEarnings.start();
     }
 
+    private void setUpParameters(double price, double volume, Boolean isOn)
+    {
+        this.price = price;
+        this.volume = volume;
+        this.isOn = isOn;
+        Button sellingActivationButton = findViewById(R.id.selling_activation);
+        if(isOn)
+        {
+            sellingActivationButton.setBackgroundColor(getResources().getColor(R.color.black));
+            sellingActivationButton.setText(R.string.selling_is_on);
+        }
+        else {
+            sellingActivationButton.setBackgroundColor(getResources().getColor(R.color.silver));
+            sellingActivationButton.setText(R.string.selling_is_off);
+        }
+    }
+
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == SELL_FORM_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             double price = data.getDoubleExtra(MapsActivity.PRICE_SELL_INTENT_VALUE,0);
             double volume = data.getDoubleExtra(MapsActivity.VOLUME_SELL_INTENT_VALUE,0);
             editor.putLong(PRICE_SELL_EDITOR_VALUE, Double.doubleToRawLongBits(price));
             editor.putLong(VOLUME_SELL_EDITOR_VALUE, Double.doubleToRawLongBits(volume));
+            editor.putString(NETWORK_NAME_SELL_EDITOR_VALUE, data.getStringExtra(NETWORK_NAME_INTENT_VALUE));
+            editor.putString(NETWORK_PASSWORD_SELL_EDITOR_VALUE, data.getStringExtra(NETWORK_PASSWORD_INTENT_VALUE));
             editor.apply();
             setUpParameters(price,volume,isOn);
         }
@@ -213,7 +224,6 @@ public class SellActivity extends AppCompatActivity {
         setTitle("Seller View");
         return super.onCreateOptionsMenu(menu);
     }
-
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -228,24 +238,6 @@ public class SellActivity extends AppCompatActivity {
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
-        }
-    }
-
-    private void setUpParameters(double price, double volume, Boolean isOn)
-    {
-        this.price = price;
-        this.volume = volume;
-
-        this.isOn = isOn;
-        Button sellingActivationButton = findViewById(R.id.selling_activation);
-        if(isOn)
-        {
-            sellingActivationButton.setBackgroundColor(getResources().getColor(R.color.black));
-            sellingActivationButton.setText("SELLING IS ON");
-        }
-        else {
-            sellingActivationButton.setBackgroundColor(getResources().getColor(R.color.silver));
-            sellingActivationButton.setText("SELLING IS OFF");
         }
     }
 }

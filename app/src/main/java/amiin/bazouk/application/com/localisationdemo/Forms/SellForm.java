@@ -34,6 +34,28 @@ public class SellForm extends Activity {
             }
         });
 
+        ((EditText)findViewById(R.id.volume)).setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    findViewById(R.id.network_name).requestFocus();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        ((EditText)findViewById(R.id.network_name)).setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    findViewById(R.id.network_password).requestFocus();
+                    return true;
+                }
+                return false;
+            }
+        });
+
         findViewById(R.id.ok).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -67,6 +89,8 @@ public class SellForm extends Activity {
                 Intent result = new Intent(SellForm.this, SellActivity.class);
                 result.putExtra(MapsActivity.PRICE_SELL_INTENT_VALUE, Double.valueOf(((EditText)findViewById(R.id.price)).getText().toString()));
                 result.putExtra(MapsActivity.VOLUME_SELL_INTENT_VALUE, Double.valueOf(((EditText)findViewById(R.id.volume)).getText().toString()));
+                result.putExtra(SellActivity.NETWORK_NAME_INTENT_VALUE, ((EditText)findViewById(R.id.network_name)).getText().toString());
+                result.putExtra(SellActivity.NETWORK_PASSWORD_INTENT_VALUE, ((EditText)findViewById(R.id.network_password)).getText().toString());
                 setResult(RESULT_OK, result);
                 result.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
                 finish();
