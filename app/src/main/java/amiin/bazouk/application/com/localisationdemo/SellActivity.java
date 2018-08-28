@@ -91,18 +91,17 @@ public class SellActivity extends AppCompatActivity {
                         {
                             buyerMarker.soustractExpenses(price);
                             buyerMarker.setMarkerBought(null);
-                            buyerMarker.closeTCPClient();
                             buyerMarker.closeWebSocketClient();
+                            buyerMarker.setBuyOn(false);
                         }
                         markerSold.getBuyersMarker().clear();
+                        markerSold.getMarker().remove();
                     }
                     seller.setExpenses(0);
-                    seller.closeTCPServer();
                     ((Button)v).setText(R.string.selling_is_off);
                 }
                 else {
                     isOn=true;
-                    seller.setTCPServer(preferences.getString(NETWORK_NAME_SELL_EDITOR_VALUE,""),preferences.getString(NETWORK_PASSWORD_SELL_EDITOR_VALUE,""));
                     v.setBackgroundColor(getResources().getColor(R.color.black));
                     ((Button)v).setText(R.string.selling_is_on);
                 }

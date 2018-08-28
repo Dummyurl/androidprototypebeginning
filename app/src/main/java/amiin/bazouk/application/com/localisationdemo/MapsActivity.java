@@ -245,8 +245,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } else {
                 removeMarker();
             }
-        } else if (requestCode == BUY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-
         }
     }
 

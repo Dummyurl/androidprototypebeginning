@@ -43,7 +43,6 @@ public class BuyActivity extends AppCompatActivity {
     private final String SERIE_OF_EXPENSES_POINTS = "serie_of_earnings_points";
     public static final String PRICE_MIN_BUY_INTENT_VALUE = "price_min_buy_intent_value";
     public static final String PRICE_MAX_BUY_INTENT_VALUE = "price_max_buy_intent_value";
-    private final String IS_ON_BUY_EDITOR_VALUE = "is_on_buy_editor_value";
     private static final String PRICE_BUY_EDITOR_VALUE = "price_editor_value";
     private final String VOLUME_BUY_EDITOR_VALUE = "volume_buy_editor_value";
 
@@ -112,7 +111,7 @@ public class BuyActivity extends AppCompatActivity {
         valueSpent = Double.longBitsToDouble(preferences.getLong(PRICE_BUY_EDITOR_VALUE, 0));
 
         Button connectionButton = findViewById(R.id.connection);
-        if(preferences.getBoolean(IS_ON_BUY_EDITOR_VALUE,false))
+        if(MapsActivity.getUser().isBuyOn())
         {
             connectionButton.setBackgroundColor(getResources().getColor(R.color.black));
             connectionButton.setText(R.string.connected);
@@ -136,14 +135,13 @@ public class BuyActivity extends AppCompatActivity {
         findViewById(R.id.connection).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(preferences.getBoolean(IS_ON_BUY_EDITOR_VALUE,false))
+                User buyer = MapsActivity.getUser();
+                if(buyer.isBuyOn())
                 {
                     disconnect();
                 }
                 else {
-                    User buyer = MapsActivity.getUser();
-                    buyer.setTCPClient(buyer.getMarkerSold().getOwnerMarker().getTCPServerSocket());
-                    buyer.setWebSocketClient("wss://demos.kaazing.com/amqp");
+                    buyer.setWebSocketClient("ws://echo.websocket.org");
                     ConnectionDialog connectionDialog = new ConnectionDialog(BuyActivity.this,BuyActivity.this);
                     connectionDialog.show();
                 }
@@ -157,7 +155,8 @@ public class BuyActivity extends AppCompatActivity {
         buttonConnection.setBackgroundColor(getResources().getColor(R.color.black));
         buttonConnection.setText(R.string.connected);
         buyer.setExpenses(valueSpent);
-        editor.putBoolean(IS_ON_BUY_EDITOR_VALUE,true);
+        buyer.getMarkerSold().getOwnerMarker().addEarnings(valueSpent);
+        buyer.setBuyOn(true);
         editor.commit();
     }
 
@@ -199,9 +198,8 @@ public class BuyActivity extends AppCompatActivity {
         buyer.setExpenses(0);
         findViewById(R.id.connection).setBackgroundColor(getResources().getColor(R.color.silver));
         ((Button)findViewById(R.id.connection)).setText(R.string.connection);
-        buyer.closeTCPClient();
         buyer.closeWebSocketClient();
-        editor.putBoolean(IS_ON_BUY_EDITOR_VALUE,false);
+        buyer.setBuyOn(false);
         editor.commit();
     }
 

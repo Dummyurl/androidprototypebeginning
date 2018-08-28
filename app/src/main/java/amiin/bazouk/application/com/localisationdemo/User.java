@@ -5,31 +5,17 @@ import android.util.Log;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class User implements Comparable<User>{
-
-    private static final int PORT_SERVER_SOCKET = 8080;
     private String username;
     private MarkerSold markerBought;
     private MarkerSold markerSold;
     private double earnings;
     private double expenses;
-    private Socket tcpClient;
-    private ServerSocket tcpServerSocket;
+    private boolean isBuyOn = false;
     private WebSocketClient webSocketClient;
-    private String message;
 
     User(String username)
     {
@@ -58,8 +44,8 @@ public class User implements Comparable<User>{
         return markerSold;
     }
 
-    public String getMessage() {
-        return message;
+    public boolean isBuyOn() {
+        return isBuyOn;
     }
 
     public void setMarkerBought(MarkerSold markerBought)
@@ -72,14 +58,13 @@ public class User implements Comparable<User>{
         this.markerSold = markerSold;
     }
 
-    public void setEarnings(double earnings)
-    {
-        this.earnings = earnings;
-    }
-
     public void setExpenses(double expenses)
     {
         this.expenses= expenses;
+    }
+
+    public void addEarnings(double valueSpent) {
+        earnings+=valueSpent;
     }
 
     public void soustractEarnings(double earnings)
@@ -92,95 +77,9 @@ public class User implements Comparable<User>{
         this.expenses -= expenses;
     }
 
-    //TCP part
-
-    public ServerSocket getTCPServerSocket()
-    {
-        return tcpServerSocket;
+    public void setBuyOn(boolean isBuyOn) {
+        this.isBuyOn = isBuyOn;
     }
-
-    public void setTCPClient(final ServerSocket tcpServerSocket)
-    {
-        Thread clientThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    tcpClient = new Socket();
-                    tcpClient.connect(tcpServerSocket.getLocalSocketAddress());
-                    InputStream is = tcpClient.getInputStream();
-                    InputStreamReader isr = new InputStreamReader(is);
-                    BufferedReader br = new BufferedReader(isr);
-                    message = br.readLine();
-                    System.out.println("Message received from the server : " +message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Log.i("received response", e.getMessage());
-                }
-            }
-        });
-        clientThread.start();
-    }
-
-    public void setTCPServer(final String ssid, final String password)
-    {
-        try {
-            tcpServerSocket = new ServerSocket(PORT_SERVER_SOCKET);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        Thread threadServerListening = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(!tcpServerSocket.isClosed()) {
-                    try {
-                        Socket socket = tcpServerSocket.accept();
-                        String returnMessage = ssid+","+password;
-                        //Sending the response back to the client.
-                        OutputStream os = socket.getOutputStream();
-                        OutputStreamWriter osw = new OutputStreamWriter(os);
-                        BufferedWriter bw = new BufferedWriter(osw);
-                        bw.write(returnMessage);
-                        System.out.println("Message sent to the client is "+returnMessage);
-                        bw.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        });
-        threadServerListening.start();
-    }
-
-    public void closeTCPServer()
-    {
-        Thread closeServerThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    tcpServerSocket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        closeServerThread.start();
-    }
-
-    public void closeTCPClient()
-    {
-        Thread closeClientThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    tcpClient.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        closeClientThread.start();
-    }
-    //TCP part*
 
     //Web Socket Client part
     public void setWebSocketClient(final String serverAdress) {
@@ -199,11 +98,12 @@ public class User implements Comparable<User>{
                     @Override
                     public void onOpen(ServerHandshake serverHandshake) {
                         Log.i("Websocket", "Opened");
-                        webSocketClient.send("Opening");
+                        webSocketClient.send("Hello");
                     }
 
                     @Override
                     public void onMessage(String s) {
+                        System.out.println("Message sent: "+s);
                         webSocketClient.send(s);
                     }
 
@@ -217,10 +117,8 @@ public class User implements Comparable<User>{
                         Log.i("Websocket", "Error " + e.getMessage());
                     }
                 };
-                //System.out.println("NOT CONNECTED AT ALL: "+webSocketClient.getConnection().isConnecting());
                 webSocketClient.connect();
-                //webSocketClient.send("HELLO");
-                //System.out.println("CONNECTED AT ALL: "+webSocketClient.getConnection().isConnecting());
+
             }
         });
         clientThread.start();
