@@ -1,23 +1,15 @@
 package amiin.bazouk.application.com.localisationdemo;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.net.wifi.ScanResult;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -39,7 +31,6 @@ import amiin.bazouk.application.com.localisationdemo.Forms.BuyForm;
 public class BuyActivity extends AppCompatActivity {
 
     private static final int BUY_FORM_REQUEST_CODE =4;
-    private static final int PERMISSION_ACCESS_WIFI_REQUEST_CODE = 10;
     private final String SERIE_OF_EXPENSES_POINTS = "serie_of_earnings_points";
     public static final String PRICE_MIN_BUY_INTENT_VALUE = "price_min_buy_intent_value";
     public static final String PRICE_MAX_BUY_INTENT_VALUE = "price_max_buy_intent_value";
@@ -54,36 +45,11 @@ public class BuyActivity extends AppCompatActivity {
     private List<Double> serieOfExpensesPoints;
     private LineGraphSeries<DataPointInterface> series;
     private GraphView graph;
-    private WifiManager mWifiManager;
-    private List<ScanResult> wifiList;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.buy_activity);
-
-        //TEST TO GET ALL THE WIFIs*
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                requestPermissions(new String[]{Manifest.permission.ACCESS_WIFI_STATE}, PERMISSION_ACCESS_WIFI_REQUEST_CODE);
-            }
-        }
-        else {
-            mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            final BroadcastReceiver mWifiScanReceiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context c, Intent intent) {
-                    if (intent.getAction().equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-                        mWifiManager.startScan();
-                        wifiList = mWifiManager.getScanResults();
-                    }
-                }
-            };
-            registerReceiver(mWifiScanReceiver,new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-            mWifiManager.startScan();
-        }
-        // TEST TO GET ALL THE WIFIs*
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
         editor = preferences.edit();
@@ -310,32 +276,6 @@ public class BuyActivity extends AppCompatActivity {
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_ACCESS_WIFI_REQUEST_CODE:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                    final BroadcastReceiver mWifiScanReceiver = new BroadcastReceiver() {
-                        @Override
-                        public void onReceive(Context c, Intent intent) {
-                            if (intent.getAction().equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-                                StringBuilder sb = new StringBuilder();
-                                mWifiManager.startScan();
-                                List<ScanResult> wifiList = mWifiManager.getScanResults();
-                                for (int i = 0; i < wifiList.size(); i++){
-                                    sb.append(Integer.valueOf(i + 1).toString()).append(".");
-                                    sb.append((wifiList.get(i)).SSID);
-                                    sb.append("\n");
-                                }
-                            }
-                        }
-                    };
-                    registerReceiver(mWifiScanReceiver,new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-                }
         }
     }
 }

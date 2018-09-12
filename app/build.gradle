@@ -14,8 +14,8 @@ android {
         applicationId "amiin.bazouk.application.com.localisationdemo"
         minSdkVersion 15
         targetSdkVersion 27
-        versionCode 5
-        versionName "5.0"
+        versionCode 8
+        versionName "8.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         signingConfig signingConfigs.config
     }
