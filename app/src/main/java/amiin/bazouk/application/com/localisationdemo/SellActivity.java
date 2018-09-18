@@ -91,7 +91,6 @@ public class SellActivity extends AppCompatActivity {
                         {
                             buyerMarker.soustractExpenses(price);
                             buyerMarker.setMarkerBought(null);
-                            buyerMarker.closeWebSocketClient();
                             buyerMarker.setBuyOn(false);
                         }
                         markerSold.getBuyersMarker().clear();

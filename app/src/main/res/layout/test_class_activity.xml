@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_margin="10dp"
+        android:layout_centerHorizontal="true">
+
+        <ListView
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            android:id="@+id/wifi_list_view"
+            android:textStyle="bold"
+            android:scrollbars = "vertical"
+            android:textColor="#FF0000"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/wrong_identification"
+            android:paddingLeft="7sp"
+            android:paddingBottom="5sp"
+            android:textStyle="bold"
+            android:textColor="#FF0000"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingLeft="7sp"
+            android:paddingBottom="5sp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingRight="5sp"
+                android:text="Wifi Name:" />
+
+            <EditText
+                android:layout_width="100sp"
+                android:layout_height="wrap_content"
+                android:id="@+id/wifi_name"
+                android:singleLine="true"
+                android:background="#FFFFFF"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="7sp"
+            android:paddingBottom="5sp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingRight="6sp"
+                android:text="Password:" />
+
+            <EditText
+                android:layout_width="100sp"
+                android:layout_height="wrap_content"
+                android:id="@+id/wifi_password"
+                android:singleLine="true"
+                android:background="#FFFFFF"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="7sp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingRight="6sp"
+                android:text="Encryption:" />
+
+            <EditText
+                android:layout_width="100sp"
+                android:layout_height="wrap_content"
+                android:id="@+id/encryption"
+                android:singleLine="true"
+                android:background="#FFFFFF"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/connect_to_wifi"
+                android:text="CONNECT"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/cancel"
+                android:text="CANCEL"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/list_wifis"
+                android:text="WIFIS"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/client"
+                android:text="CLIENT"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/go_to_main_app"
+                android:text="GO TO APP"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/open_hotspot"
+                android:text="OPEN HOTSPOT"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/close_hotspot"
+                android:text="CLOSE HOTSPOT"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+
+</RelativeLayout>

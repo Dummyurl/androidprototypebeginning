@@ -1,21 +1,14 @@
 package amiin.bazouk.application.com.localisationdemo;
 
 import android.support.annotation.NonNull;
-import android.util.Log;
-
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 public class User implements Comparable<User>{
     private String username;
-    private MarkerSold markerBought;
-    private MarkerSold markerSold;
     private double earnings;
     private double expenses;
+    private MarkerSold markerBought;
+    private MarkerSold markerSold;
     private boolean isBuyOn = false;
-    private WebSocketClient webSocketClient;
 
     User(String username)
     {
@@ -80,61 +73,6 @@ public class User implements Comparable<User>{
     public void setBuyOn(boolean isBuyOn) {
         this.isBuyOn = isBuyOn;
     }
-
-    //Web Socket Client part
-    public void setWebSocketClient(final String serverAdress) {
-        Thread clientThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                URI uri;
-                try {
-                    uri = new URI(serverAdress);
-                } catch (URISyntaxException e) {
-                    e.printStackTrace();
-                    return;
-                }
-
-                webSocketClient = new WebSocketClient(uri) {
-                    @Override
-                    public void onOpen(ServerHandshake serverHandshake) {
-                        Log.i("Websocket", "Opened");
-                        webSocketClient.send("Hello");
-                    }
-
-                    @Override
-                    public void onMessage(String s) {
-                        System.out.println("Message sent: "+s);
-                        webSocketClient.send(s);
-                    }
-
-                    @Override
-                    public void onClose(int i, String s, boolean b) {
-                        Log.i("Websocket", "Closed " + s);
-                    }
-
-                    @Override
-                    public void onError(Exception e) {
-                        Log.i("Websocket", "Error " + e.getMessage());
-                    }
-                };
-                webSocketClient.connect();
-
-            }
-        });
-        clientThread.start();
-    }
-
-    public void closeWebSocketClient()
-    {
-        Thread closeClientThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                webSocketClient.close();
-            }
-        });
-        closeClientThread.start();
-    }
-    //Web Socket Client part*
 
     @Override
     public int compareTo(@NonNull User user) {

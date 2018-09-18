@@ -107,15 +107,13 @@ public class BuyActivity extends AppCompatActivity {
                     disconnect();
                 }
                 else {
-                    buyer.setWebSocketClient("ws://echo.websocket.org");
-                    ConnectionDialog connectionDialog = new ConnectionDialog(BuyActivity.this,BuyActivity.this);
-                    connectionDialog.show();
+                    connect();
                 }
             }
         });
     }
 
-    public void connect() {
+    private void connect() {
         User buyer = MapsActivity.getUser();
         Button buttonConnection = findViewById(R.id.connection);
         buttonConnection.setBackgroundColor(getResources().getColor(R.color.black));
@@ -164,7 +162,6 @@ public class BuyActivity extends AppCompatActivity {
         buyer.setExpenses(0);
         findViewById(R.id.connection).setBackgroundColor(getResources().getColor(R.color.silver));
         ((Button)findViewById(R.id.connection)).setText(R.string.connection);
-        buyer.closeWebSocketClient();
         buyer.setBuyOn(false);
         editor.commit();
     }
