@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.TrafficStats;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
@@ -30,42 +31,46 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
+import com.corundumstudio.socketio.AckRequest;
+import com.corundumstudio.socketio.Configuration;
+import com.corundumstudio.socketio.SocketIOClient;
+import com.corundumstudio.socketio.SocketIOServer;
+import com.corundumstudio.socketio.listener.DataListener;
 import com.github.nkzawa.emitter.Emitter;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
-import okio.ByteString;
-
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
-import java.net.URI;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import io.socket.engineio.server.EngineIoServer;
+import io.socket.engineio.server.EngineIoSocket;
+
 public class TestClass extends AppCompatActivity {
 
-    private static final int NORMAL_CLOSURE_STATUS = 1000;
     private static final String TAG = "TEST ON HOTSPOT";
     private static final int PERMISSION_ACCESS_WIFI_REQUEST_CODE = 1000;
     private static final int PERMISSION_REQUEST_CODE = 10002;
+    private static final int PORT = 8603;
     private WifiManager.LocalOnlyHotspotReservation reservation;
     private WifiManager wifiManager;
     private WifiManager mWifiManager;
     private List<ScanResult> wifiList;
     private SimpleAdapter adapterListWifis;
     private List<HashMap<String, String>> listMapOfEachWifi;
-    private OkHttpClient client;
+    private Handler mHandler = new Handler();
+    private long mStartRX = 0;
+    private long mStartTX = 0;
+    private Runnable mRunnable;
+    private Socket mSocket;
+    private SocketIOServer server;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -73,7 +78,6 @@ public class TestClass extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.test_class_activity);
 
-        client = new OkHttpClient();
         wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
 
         ListView listViewWifis = findViewById(R.id.wifi_list_view);
@@ -95,6 +99,18 @@ public class TestClass extends AppCompatActivity {
         };
 
         (listViewWifis).setAdapter(adapterListWifis);
+
+        mRunnable = new Runnable() {
+            public void run() {
+                TextView RX = findViewById(R.id.rx);
+                TextView TX = findViewById(R.id.tx);
+                long rxBytes = TrafficStats.getTotalRxBytes() - mStartRX;
+                RX.setText(Long.toString(rxBytes));
+                long txBytes = TrafficStats.getTotalTxBytes() - mStartTX;
+                TX.setText(Long.toString(txBytes));
+                mHandler.postDelayed(mRunnable, 1000);
+            }
+        };
 
         setUpTheViews();
     }
@@ -156,91 +172,105 @@ public class TestClass extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.client_java).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.connect_socket).setOnClickListener(new View.OnClickListener() {
 
             @Override
-
             public void onClick(View v) {
                 Thread clientThread = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        URI uri;
-                        try {
-                            uri = new URI("http://18.223.249.82:3000");
-                        } catch (URISyntaxException e) {
-                            e.printStackTrace();
-                            return;
+                        if (mSocket==null || !mSocket.connected()) {
+                            try {
+                                mSocket = IO.socket("http://127.0.0.1:8088");
+                            } catch (URISyntaxException e) {
+                                System.out.print(e.getMessage());
+                            }
+
+                            if(mSocket!=null) {
+                                mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
+
+                                    @Override
+                                    public void call(Object... args) {
+                                        Log.d("ActivityName: ", "socket connected");
+                                        //socket.disconnect();
+                                    }
+                                }).on(Socket.EVENT_MESSAGE, new Emitter.Listener() {
+
+                                    @Override
+                                    public void call(final Object... args) {
+                                        Log.d("ActivityName: ", "msg received: " + args[0].toString());
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                ((TextView)findViewById(R.id.response_server)).setText(args[0].toString());
+                                            }
+                                        });
+                                        mSocket.emit(Socket.EVENT_MESSAGE, "salut Sam c est Adrien. J ai recu ton message: \"" + args[0].toString() + "\"");
+                                    }
+                                });
+                                mSocket.connect();
+                            }
                         }
-
-                        final WebSocketClient webSocketClient = new WebSocketClient(uri) {
-
-                            @Override
-                            public void onOpen(ServerHandshake serverHandshake) {
-                                Log.i("Websocket", "Opened");
-                                send("Hello");
-                            }
-
-                            @Override
-                            public void onMessage(String s) {
-                                System.out.println("Message sent: " + s);
-                                send(s);
-                            }
-
-                            @Override
-                            public void onClose(int i, String s, boolean b) {
-                                Log.i("Websocket", "Closed " + s);
-                            }
-
-                            @Override
-                            public void onError(Exception e) {
-                                Log.i("Websocket", "Error " + e.getMessage());
-                            }
-                        };
-                        webSocketClient.connect();
                     }
                 });
                 clientThread.start();
             }
         });
 
-        findViewById(R.id.client_android).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.disconnect_socket).setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View v) {
                 Thread clientThread = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        Request request = new Request.Builder().url("http://18.223.249.82:3000").build();
-                        WebSocket ws = client.newWebSocket(request, new EchoWebSocketListener());
-                        client.dispatcher().executorService().shutdown();
-
+                        if(mSocket!=null) {
+                            mSocket.disconnect();
+                            mSocket = null;
+                        }
                     }
                 });
                 clientThread.start();
             }
         });
 
-        findViewById(R.id.client_socket_io).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.send_message).setOnClickListener(new View.OnClickListener() {
 
             @Override
-
             public void onClick(View v) {
                 Thread clientThread = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        Socket mSocket = null;
-                        try {
-                            mSocket = IO.socket("http://18.223.249.82:3000");
-                        } catch (URISyntaxException e) {
-                            System.out.print(e.getMessage());
-                            int a = 0;
-                            int b = 0;
+                        if(mSocket!=null && mSocket.connected()){
+                            mSocket.send("HELLO BRO");
                         }
-                        mSocket.connect();
-                        mSocket.on("new message", onNewMessage);
-                        mSocket.emit("salut Sam c est Adrien","salut Sam c est Adrien");
                     }
                 });
                 clientThread.start();
+            }
+        });
+
+        findViewById(R.id.show_volume_button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mStartRX = TrafficStats.getTotalRxBytes();
+                mStartTX = TrafficStats.getTotalTxBytes();
+                if (mStartRX == TrafficStats.UNSUPPORTED || mStartTX == TrafficStats.UNSUPPORTED) {
+                    AlertDialog.Builder alert = new AlertDialog.Builder(TestClass.this);
+                    alert.setTitle("Uh Oh!");
+                    alert.setMessage("Your device does not support traffic stat monitoring.");
+                    alert.show();
+                }
+                else {
+                    mHandler.postDelayed(mRunnable, 1000);
+                }
+            }
+        });
+
+        findViewById(R.id.start_server).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                server();
             }
         });
     }
@@ -473,6 +503,34 @@ public class TestClass extends AppCompatActivity {
         }
     }
 
+    private void server(){
+        if(server==null) {
+            Thread serverThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Configuration config = new Configuration();
+                    config.setHostname("192.168.1.29");
+                    config.setPort(9444);
+                    server = new SocketIOServer(config);
+                    server.addEventListener("toServer", String.class, new DataListener<String>() {
+                        @Override
+                        public void onData(SocketIOClient client, String data, AckRequest ackRequest) {
+                            client.sendEvent("toClient", "server recieved " + data);
+                        }
+                    });
+                    server.addEventListener("message", String.class, new DataListener<String>() {
+                        @Override
+                        public void onData(SocketIOClient client, String data, AckRequest ackRequest) {
+                            client.sendEvent("toClient", "message from server " + data);
+                        }
+                    });
+                    server.start();
+                }
+            });
+            serverThread.start();
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
@@ -486,52 +544,4 @@ public class TestClass extends AppCompatActivity {
                 }
         }
     }
-
-    public class EchoWebSocketListener extends  WebSocketListener{
-        @Override
-        public void onOpen(WebSocket webSocket, Response response) {
-            webSocket.send("Hello, it's SSaurel !");
-            webSocket.send("What's up ?");
-            webSocket.send(ByteString.decodeHex("deadbeef"));
-            webSocket.close(NORMAL_CLOSURE_STATUS, "Goodbye !");
-        }
-        @Override
-        public void onMessage(WebSocket webSocket, String text) {
-            System.out.println("Receiving : " + text);
-        }
-        @Override
-        public void onMessage(WebSocket webSocket, ByteString bytes) {
-            System.out.println("Receiving bytes : " + bytes.hex());
-        }
-        @Override
-        public void onClosing(WebSocket webSocket, int code, String reason) {
-            webSocket.close(NORMAL_CLOSURE_STATUS, null);
-            System.out.println("Closing : " + code + " / " + reason);
-        }
-        @Override
-        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-            System.out.println("Error : " + t.getMessage());
-        }
-    }
-
-    private Emitter.Listener onNewMessage = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    String message;
-                    try {
-                        username = data.getString("username");
-                        message = data.getString("message");
-                    } catch (JSONException e) {
-                        return;
-                    }
-                    ((TextView)findViewById(R.id.response_server)).setText(username+" "+message);
-                }
-            });
-        }
-    };
 }
