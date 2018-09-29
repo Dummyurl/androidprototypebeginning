@@ -148,27 +148,39 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/connect_socket"
-                android:text="CONNECT"/>
+                android:text="CONNECT CLIENT"/>
 
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/send_message"
-                android:text="SEND HELLO"/>
+                android:id="@+id/send_client"
+                android:text="SEND TO SERVER"/>
 
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/disconnect_socket"
-                android:text="DISCONNECT"/>
+                android:text="DISCONNECT CLIENT"/>
 
         </LinearLayout>
 
-        <Button
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/start_server"
-            android:text="START SERVER"/>
+            android:layout_height="wrap_content">
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/start_server"
+                android:text="START SERVER"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/send_server"
+                android:text="SEND TO CLIENT"/>
+
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -225,6 +237,14 @@
                 android:paddingTop="10dp"/>
 
         </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/ip_text"
+            android:text="ip hostpot"
+            android:textSize="20sp"
+            android:paddingTop="10dp"/>
 
     </LinearLayout>
 

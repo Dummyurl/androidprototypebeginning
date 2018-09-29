@@ -21,6 +21,8 @@ import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.InputType;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,34 +33,33 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
-import com.corundumstudio.socketio.AckRequest;
-import com.corundumstudio.socketio.Configuration;
-import com.corundumstudio.socketio.SocketIOClient;
-import com.corundumstudio.socketio.SocketIOServer;
-import com.corundumstudio.socketio.listener.DataListener;
-import com.github.nkzawa.emitter.Emitter;
-import com.github.nkzawa.socketio.client.IO;
-import com.github.nkzawa.socketio.client.Socket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
 
-import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
-import java.net.UnknownHostException;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
-import io.socket.engineio.server.EngineIoServer;
-import io.socket.engineio.server.EngineIoSocket;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+import okio.ByteString;
 
 public class TestClass extends AppCompatActivity {
 
     private static final String TAG = "TEST ON HOTSPOT";
     private static final int PERMISSION_ACCESS_WIFI_REQUEST_CODE = 1000;
     private static final int PERMISSION_REQUEST_CODE = 10002;
-    private static final int PORT = 8603;
     private WifiManager.LocalOnlyHotspotReservation reservation;
     private WifiManager wifiManager;
     private WifiManager mWifiManager;
@@ -69,8 +70,10 @@ public class TestClass extends AppCompatActivity {
     private long mStartRX = 0;
     private long mStartTX = 0;
     private Runnable mRunnable;
-    private Socket mSocket;
-    private SocketIOServer server;
+    private OkHttpClient client;
+    private WebSocketServer server;
+    private WebSocket webSocket;
+    private boolean isHotspotOn = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -155,6 +158,7 @@ public class TestClass extends AppCompatActivity {
             public void onClick(View v) {
                 wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
                 closeWifiHotspotState();
+                isHotspotOn = false;
             }
         });
 
@@ -176,77 +180,68 @@ public class TestClass extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                Thread clientThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (mSocket==null || !mSocket.connected()) {
-                            try {
-                                mSocket = IO.socket("http://127.0.0.1:8088");
-                            } catch (URISyntaxException e) {
-                                System.out.print(e.getMessage());
-                            }
-
-                            if(mSocket!=null) {
-                                mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
-
-                                    @Override
-                                    public void call(Object... args) {
-                                        Log.d("ActivityName: ", "socket connected");
-                                        //socket.disconnect();
-                                    }
-                                }).on(Socket.EVENT_MESSAGE, new Emitter.Listener() {
-
-                                    @Override
-                                    public void call(final Object... args) {
-                                        Log.d("ActivityName: ", "msg received: " + args[0].toString());
-                                        runOnUiThread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                ((TextView)findViewById(R.id.response_server)).setText(args[0].toString());
-                                            }
-                                        });
-                                        mSocket.emit(Socket.EVENT_MESSAGE, "salut Sam c est Adrien. J ai recu ton message: \"" + args[0].toString() + "\"");
-                                    }
-                                });
-                                mSocket.connect();
-                            }
-                        }
-                    }
-                });
-                clientThread.start();
+               setWebSocketClient();
             }
         });
 
         findViewById(R.id.disconnect_socket).setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View v) {
-                Thread clientThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if(mSocket!=null) {
-                            mSocket.disconnect();
-                            mSocket = null;
-                        }
-                    }
-                });
-                clientThread.start();
+
             }
         });
 
-        findViewById(R.id.send_message).setOnClickListener(new View.OnClickListener() {
-
+        findViewById(R.id.send_client).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Thread clientThread = new Thread(new Runnable() {
+                AlertDialog.Builder builder = new AlertDialog.Builder(TestClass.this);
+                builder.setTitle("Title");
+                final EditText input = new EditText(TestClass.this);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
-                    public void run() {
-                        if(mSocket!=null && mSocket.connected()){
-                            mSocket.send("HELLO BRO");
+                    public void onClick(DialogInterface dialog, int which) {
+                        webSocket.send(input.getText().toString());
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
+            }
+        });
+
+        findViewById(R.id.send_server).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(TestClass.this);
+                builder.setTitle("Title");
+                final EditText input = new EditText(TestClass.this);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        for (org.java_websocket.WebSocket webSocketofClients : server.connections()) {
+                            webSocketofClients.send(input.getText().toString());
                         }
                     }
                 });
-                clientThread.start();
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
+                /*Iterator<org.java_websocket.WebSocket> it = server.connections().iterator();
+                while(it.hasNext()){
+                    it.next().send("HELLO CLIENT");
+                }*/
             }
         });
 
@@ -270,10 +265,226 @@ public class TestClass extends AppCompatActivity {
         findViewById(R.id.start_server).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                server();
+                if(server==null){
+                    final AlertDialog.Builder builder;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        builder = new AlertDialog.Builder(TestClass.this, android.R.style.Theme_Material_Dialog_Alert);
+                    } else {
+                        builder = new AlertDialog.Builder(TestClass.this);
+                    }
+                    Thread serverThread = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            /*wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    openWifiHotspotState();
+                                }
+                            });*/
+
+                            if(!isHotspotOn()){
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        builder.setTitle("Turn on your hotspot")
+                                                .setMessage("Turn on your hotspot")
+                                                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                    public void onClick(DialogInterface dialog, int which) {
+                                                    }
+                                                }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                                    }
+                                });
+                                return;
+                            }
+
+                            if(!ipDevice()){
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        builder.setTitle("Change your hotspot address")
+                                                .setMessage("Change your hotspot address to the default address")
+                                                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                    public void onClick(DialogInterface dialog, int which) {
+                                                    }
+                                                }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                                    }
+                                });
+                                return;
+                            }
+                            String ipAddress = "192.168.43.1";
+                            InetSocketAddress inetSockAddress = new InetSocketAddress(ipAddress,38301);
+                            server = new WebSocketServer(inetSockAddress){
+
+                                @Override
+                                public void onOpen(org.java_websocket.WebSocket conn, ClientHandshake handshake) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            builder.setTitle("New client connected")
+                                                    .setMessage("New client connected")
+                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                        public void onClick(DialogInterface dialog, int which) {
+                                                        }
+                                                    }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onClose(org.java_websocket.WebSocket conn, int code, String reason, boolean remote) {
+
+                                }
+
+                                @Override
+                                public void onMessage(org.java_websocket.WebSocket conn, final String message) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            builder.setTitle("Message received from client to server")
+                                                    .setMessage(message)
+                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                        public void onClick(DialogInterface dialog, int which) {
+                                                        }
+                                                    }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onError(org.java_websocket.WebSocket conn, Exception ex) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            builder.setTitle("Connection failed")
+                                                    .setMessage("Connection of client failed")
+                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                        public void onClick(DialogInterface dialog, int which) {
+                                                        }
+                                                    }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                                        }
+                                    });
+                                }
+                            };
+                            server.start();
+                        }
+                    });
+                    serverThread.start();
+                }
             }
         });
+
+        /*findViewById(R.id.get_ip).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ((TextView)findViewById(R.id.ip_text)).setText(ipDevice());
+            }
+        });*/
     }
+
+    private boolean isHotspotOn() {
+        return new WifiApManager().isWifiApEnabled();
+        /*runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(!new WifiApManager().isWifiApEnabled()){
+
+                    return;
+                }
+            }
+        });*/
+    }
+
+    private boolean ipDevice() {
+        try {
+            for(Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();en.hasMoreElements();){
+                NetworkInterface intf = en.nextElement();
+                for(Enumeration<InetAddress> enumIpAdress = intf.getInetAddresses();enumIpAdress.hasMoreElements();){
+                    InetAddress inetAddress = enumIpAdress.nextElement();
+                    if(inetAddress.getHostAddress().equals("192.168.43.1")){
+                        return true;
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private void setWebSocketClient() {
+        final AlertDialog.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder = new AlertDialog.Builder(TestClass.this, android.R.style.Theme_Material_Dialog_Alert);
+        } else {
+            builder = new AlertDialog.Builder(TestClass.this);
+        }
+        Thread clientThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                client = new OkHttpClient();
+                WebSocketListener webSocketListener = new WebSocketListener() {
+                    private static final int NORMAL_CLOSURE_STATUS = 1000;
+                    @Override
+                    public void onOpen(WebSocket webSocket, Response response) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                builder.setTitle("Connected to server")
+                                        .setMessage("Connected to the server")
+                                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+                                            }
+                                        }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                            }
+                        });
+                    }
+                    @Override
+                    public void onMessage(WebSocket webSocket, final String text) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                builder.setTitle("Message received from server to client")
+                                        .setMessage(text)
+                                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+                                            }
+                                        }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                            }
+                        });
+                    }
+                    @Override
+                    public void onMessage(WebSocket webSocket, ByteString bytes) {
+                        System.out.println("Receiving bytes : " + bytes.hex());
+                    }
+                    @Override
+                    public void onClosing(WebSocket webSocket, int code, String reason) {
+                        webSocket.close(NORMAL_CLOSURE_STATUS, null);
+                        System.out.println("Closing : " + code + " / " + reason);
+                    }
+                    @Override
+                    public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                builder.setTitle("Connection failed")
+                                        .setMessage("Connection to server failed")
+                                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+                                            }
+                                        }).setIcon(android.R.drawable.ic_dialog_alert).show();
+                            }
+                        });
+                    }
+                };
+                Request request = new Request.Builder().url("ws://192.168.43.1:38301").build();
+                webSocket = client.newWebSocket(request, webSocketListener);
+                client.dispatcher().executorService().shutdown();
+            }
+        });
+        clientThread.start();
+    }
+
 
     private void closeKeyBoard() {
         View view = this.getCurrentFocus();
@@ -396,22 +607,12 @@ public class TestClass extends AppCompatActivity {
                                     public void onTick(long millisUntilFinished) {
                                         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
                                         if (networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
-                                            runOnUiThread(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    runOnUiThread(new Runnable() {
-                                                        @Override
-                                                        public void run() {
-                                                            builder.setTitle("Connected to Wifi")
-                                                                    .setMessage("Connected to the wifi")
-                                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                                                                        public void onClick(DialogInterface dialog, int which) {
-                                                                        }
-                                                                    }).setIcon(android.R.drawable.ic_dialog_alert).show();
-                                                        }
-                                                    });
-                                                }
-                                            });
+                                            builder.setTitle("Connected to Wifi")
+                                                .setMessage("Connected to the wifi")
+                                                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                    public void onClick(DialogInterface dialog, int which) {
+                                                    }
+                                                }).setIcon(android.R.drawable.ic_dialog_alert).show();
                                             cancel();
                                         }
                                     }
@@ -421,17 +622,12 @@ public class TestClass extends AppCompatActivity {
                                         runOnUiThread(new Runnable() {
                                             @Override
                                             public void run() {
-                                                runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        builder.setTitle("Not connected to Wifi")
-                                                                .setMessage("Connection impossible to the Wifi. Please, check if the network is already saved and remove it.")
-                                                                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                    }
-                                                                }).setIcon(android.R.drawable.ic_dialog_alert).show();
-                                                    }
-                                                });
+                                                    builder.setTitle("Not connected to Wifi")
+                                                            .setMessage("Connection impossible to the Wifi. Please, check if the network is already saved and remove it.")
+                                                            .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                                public void onClick(DialogInterface dialog, int which) {
+                                                                }
+                                                            }).setIcon(android.R.drawable.ic_dialog_alert).show();
                                             }
                                         });
                                     }
@@ -478,6 +674,7 @@ public class TestClass extends AppCompatActivity {
                     System.out.println("HERE I AM");
                     Log.d(TAG, "Wifi Hotspot is on now");
                     TestClass.this.reservation = reservation;
+                    isHotspotOn = true;
                 }
 
                 @Override
@@ -497,37 +694,10 @@ public class TestClass extends AppCompatActivity {
             try {
                 Method method = wifiManager.getClass().getMethod("setWifiApEnabled", WifiConfiguration.class, Boolean.TYPE);
                 method.invoke(wifiManager, null, true);
+                isHotspotOn = true;
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    private void server(){
-        if(server==null) {
-            Thread serverThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Configuration config = new Configuration();
-                    config.setHostname("192.168.1.29");
-                    config.setPort(9444);
-                    server = new SocketIOServer(config);
-                    server.addEventListener("toServer", String.class, new DataListener<String>() {
-                        @Override
-                        public void onData(SocketIOClient client, String data, AckRequest ackRequest) {
-                            client.sendEvent("toClient", "server recieved " + data);
-                        }
-                    });
-                    server.addEventListener("message", String.class, new DataListener<String>() {
-                        @Override
-                        public void onData(SocketIOClient client, String data, AckRequest ackRequest) {
-                            client.sendEvent("toClient", "message from server " + data);
-                        }
-                    });
-                    server.start();
-                }
-            });
-            serverThread.start();
         }
     }
 
@@ -544,4 +714,51 @@ public class TestClass extends AppCompatActivity {
                 }
         }
     }
+
+    enum WIFI_AP_STATE {
+        WIFI_AP_STATE_DISABLING,
+        WIFI_AP_STATE_DISABLED,
+        WIFI_AP_STATE_ENABLING,
+        WIFI_AP_STATE_ENABLED,
+        WIFI_AP_STATE_FAILED
+    }
+
+    public class WifiApManager {
+        private final WifiManager mWifiManager;
+
+        public WifiApManager() {
+            mWifiManager = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        }
+
+        /*the following method is for getting the wifi hotspot state*/
+
+        WIFI_AP_STATE getWifiApState() {
+            try {
+                Method method = mWifiManager.getClass().getMethod("getWifiApState");
+
+                int tmp = ((Integer) method.invoke(mWifiManager));
+
+                // Fix for Android 4
+                if (tmp > 10) {
+                    tmp = tmp - 10;
+                }
+
+                return WIFI_AP_STATE.class.getEnumConstants()[tmp];
+            } catch (Exception e) {
+                Log.e(this.getClass().toString(), "", e);
+                return WIFI_AP_STATE.WIFI_AP_STATE_FAILED;
+            }
+        }
+
+        /**
+         * Return whether Wi-Fi Hotspot is enabled or disabled.
+         *
+         * @return {@code true} if Wi-Fi AP is enabled
+         * @see #getWifiApState()
+         */
+        public boolean isWifiApEnabled() {
+            return getWifiApState() == WIFI_AP_STATE.WIFI_AP_STATE_ENABLED;
+        }
+    }
+
 }
